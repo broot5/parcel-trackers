@@ -1,21 +1,22 @@
-use chrono::prelude::*;
-use teloxide::prelude::*;
-use teloxide::utils::command::BotCommands;
-
 mod getter;
+
+use chrono::prelude::*;
+use getter::get;
+use sqlx::{migrate::MigrateDatabase, FromRow, Sqlite, SqlitePool};
+use teloxide::{prelude::*, utils::command::BotCommands};
 
 #[derive(Debug)]
 struct Parcel {
-    tracking_number: usize,
+    tracking_number: String,
     sender: String,
     receiver: String,
     item: String,
     delivery_status: DeliveryStatus,
-    tracking_status: Vec<Tracking>,
+    tracking_status: Vec<TrackingStatus>,
 }
 
 #[derive(Debug)]
-struct Tracking {
+struct TrackingStatus {
     time: DateTime<FixedOffset>,
     status: String,
     location: String,
@@ -25,14 +26,51 @@ struct Tracking {
 #[derive(Debug)]
 enum DeliveryStatus {
     InProgress,
-    Complete,
+    Completed,
     Unknown,
 }
+
+#[derive(Clone, FromRow, Debug)]
+struct Tracker {
+    tracker_id: i64,
+    chat_id: i64,
+    company: String,
+    tracking_number: String,
+    added_time: i64,
+    last_checked_time: i64,
+}
+
+const DB_URL: &str = "sqlite://sqlite.db";
 
 #[tokio::main]
 async fn main() {
     pretty_env_logger::init();
-    log::info!("Starting throw dice bot...");
+    log::info!("Starting bot...");
+
+    if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
+        println!("Creating database {}", DB_URL);
+        match Sqlite::create_database(DB_URL).await {
+            Ok(_) => println!("Create db success"),
+            Err(error) => panic!("error: {}", error),
+        }
+    } else {
+        println!("Database already exists");
+    }
+
+    let db = SqlitePool::connect(DB_URL).await.unwrap();
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS trackers (
+        tracker_id INTEGER PRIMARY KEY NOT NULL,
+        chat_id INTEGER NOT NULL,
+        company TEXT NOT NULL,
+        tracking_number TEXT NOT NULL,
+        added_time INTEGER,
+        last_checked_time INTEGER);",
+    )
+    .execute(&db)
+    .await
+    .unwrap();
 
     let bot = Bot::from_env();
 
@@ -50,7 +88,7 @@ enum Command {
     #[command(description = "add tracker", parse_with = "split")]
     Add {
         company: String,
-        tracking_number: usize,
+        tracking_number: String,
     },
     #[command(description = "list added trackers")]
     List,
@@ -65,30 +103,74 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         Command::Add {
             company,
             tracking_number,
-        } => {
-            bot.send_message(
-                msg.chat.id,
-                format!("Company: {company}\nTracking number: {tracking_number}"),
-            )
-            .await?
-        }
-        Command::List => bot.send_message(msg.chat.id, format!("List")).await?,
-    };
+        } => match get(&company, &tracking_number).await {
+            Some(parcel) => {
+                let db = SqlitePool::connect(DB_URL).await.unwrap();
 
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn cj_logistics() {
-        let parcel =
-            getter::get_cj_logistics(std::env::var("CJ_LOGISTICS").unwrap().parse().unwrap())
+                sqlx::query(
+                    "INSERT INTO trackers
+                (chat_id, company, tracking_number, added_time, last_checked_time)
+                VALUES
+                ($1, $2, $3, $4, $5);",
+                )
+                .bind(msg.chat.id.0)
+                .bind(&company)
+                .bind(&tracking_number)
+                .bind(Utc::now().timestamp())
+                .bind(0)
+                .execute(&db)
                 .await
                 .unwrap();
 
-        println!("{:#?}", parcel)
-    }
+                bot.send_message(
+                    msg.chat.id,
+                    format!(
+                        "Added Tracker\nCompany: {company}\nTracking number: {tracking_number}"
+                    ),
+                )
+                .await?;
+
+                bot.send_message(
+                    msg.chat.id,
+                    format!(
+                        "Item: {}\nDelivery Satus: {:?}",
+                        parcel.item, parcel.delivery_status
+                    ),
+                )
+                .await?
+            }
+            None => {
+                bot.send_message(msg.chat.id, "Invalid company name")
+                    .await?
+            }
+        },
+        Command::List => {
+            let db = SqlitePool::connect(DB_URL).await.unwrap();
+
+            let trackers = sqlx::query_as::<_, Tracker>(
+                "SELECT *
+                FROM trackers
+                WHERE chat_id = $1;",
+            )
+            .bind(msg.chat.id.0)
+            .fetch_all(&db)
+            .await
+            .unwrap();
+
+            for tracker in trackers {
+                bot.send_message(
+                    msg.chat.id,
+                    format!(
+                        "Company: {}\nTracking number: {}\nAdded time: {}",
+                        tracker.company, tracker.tracking_number, tracker.added_time
+                    ),
+                )
+                .await?;
+            }
+
+            bot.send_message(msg.chat.id, format!("List")).await?
+        }
+    };
+
+    Ok(())
 }
