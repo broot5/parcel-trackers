@@ -90,7 +90,9 @@ enum Command {
         company: String,
         tracking_number: String,
     },
-    #[command(description = "list added trackers")]
+    #[command(description = "delete tracker")]
+    Delete { tracker_id: i64 },
+    #[command(description = "list trackers")]
     List,
 }
 
@@ -144,6 +146,22 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                     .await?
             }
         },
+        Command::Delete { tracker_id } => {
+            let db = SqlitePool::connect(DB_URL).await.unwrap();
+
+            sqlx::query(
+                "DELETE
+                FROM trackers
+                WHERE tracker_id = $1;",
+            )
+            .bind(tracker_id)
+            .execute(&db)
+            .await
+            .unwrap();
+
+            bot.send_message(msg.chat.id, format!("Deleted tracker"))
+                .await?
+        }
         Command::List => {
             let db = SqlitePool::connect(DB_URL).await.unwrap();
 
@@ -161,8 +179,11 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 bot.send_message(
                     msg.chat.id,
                     format!(
-                        "Company: {}\nTracking number: {}\nAdded time: {}",
-                        tracker.company, tracker.tracking_number, tracker.added_time
+                        "{}\nCompany: {}\nTracking number: {}\nAdded time: {}",
+                        tracker.tracker_id,
+                        tracker.company,
+                        tracker.tracking_number,
+                        tracker.added_time
                     ),
                 )
                 .await?;

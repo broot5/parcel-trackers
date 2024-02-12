@@ -10,7 +10,7 @@ pub async fn get(company: &str, tracking_number: &String) -> Option<Parcel> {
     }
 }
 
-pub async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Error>> {
+async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Error>> {
     let params = [("wblNo", tracking_number)];
 
     let client = reqwest::Client::new();
