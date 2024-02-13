@@ -217,15 +217,6 @@ async fn poll(bot: Bot) {
                 .await
                 .unwrap();
 
-            if parcel.last_updated_time.timestamp() > tracker.last_updated_timestamp {
-                bot.send_message(
-                    teloxide::types::Recipient::from(tracker.chat_id.to_string()),
-                    format!("{:#?}", parcel.tracking_status),
-                )
-                .await
-                .unwrap();
-            }
-
             match parcel.last_updated_time.timestamp() > tracker.last_updated_timestamp {
                 true => {
                     sqlx::query(
@@ -241,14 +232,38 @@ async fn poll(bot: Bot) {
 
                     bot.send_message(
                         teloxide::types::Recipient::from(tracker.chat_id.to_string()),
-                        format!("{:#?}", parcel.tracking_status.last()),
+                        format!(
+                            "{:#?}",
+                            parcel.tracking_status.last().unwrap_or(&TrackingStatus {
+                                time: Utc::now().into(),
+                                status: "Not found".to_string(),
+                                location: "".to_string(),
+                                detail: "".to_string()
+                            })
+                        ),
                     )
                     .await
                     .unwrap();
                 }
                 false => {}
             }
+
+            // Test
+            // bot.send_message(
+            //     teloxide::types::Recipient::from(tracker.chat_id.to_string()),
+            //     format!(
+            //         "{:#?}",
+            //         parcel.tracking_status.last().unwrap_or(&TrackingStatus {
+            //             time: Utc::now().into(),
+            //             status: "Not found".to_string(),
+            //             location: "".to_string(),
+            //             detail: "".to_string()
+            //         })
+            //     ),
+            // )
+            // .await
+            // .unwrap();
         }
-        sleep(Duration::from_secs(30)).await;
+        sleep(Duration::from_secs(10)).await;
     }
 }

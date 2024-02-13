@@ -3,18 +3,18 @@ use std::error::Error;
 
 use super::*;
 
-pub async fn get(company: &str, tracking_number: &String) -> Option<Parcel> {
+pub async fn get(company: &str, tracking_number: &str) -> Option<Parcel> {
     match company {
         "CJ대한통운" => Some(get_cj_logistics(tracking_number).await.unwrap()),
         _ => None,
     }
 }
 
-async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Error>> {
+async fn get_cj_logistics(tracking_number: &str) -> Result<Parcel, Box<dyn Error>> {
     let params = [("wblNo", tracking_number)];
 
     let client = reqwest::Client::new();
-    let parcel = client
+    let parcel_response = client
         .post("https://trace.cjlogistics.com/next/rest/selectTrackingWaybil.do")
         .form(&params)
         .send()
@@ -22,7 +22,7 @@ async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Er
         .json::<Value>()
         .await?;
 
-    let tracking = client
+    let tracking_response = client
         .post("https://trace.cjlogistics.com/next/rest/selectTrackingDetailList.do")
         .form(&params)
         .send()
@@ -30,33 +30,28 @@ async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Er
         .json::<Value>()
         .await?;
 
-    let tracking_number = parcel["data"]["wblNo"].as_str().unwrap().to_string();
-    let sender = parcel["data"]["sndrNm"].as_str().unwrap().to_string();
-    let receiver = parcel["data"]["rcvrNm"].as_str().unwrap().to_string();
-    let item = parcel["data"]["repGoodsNm"].as_str().unwrap().to_string();
-
-    let tracking_status = tracking["data"]["svcOutList"]
+    let tracking_status = tracking_response["data"]["svcOutList"]
         .as_array()
-        .unwrap()
+        .ok_or("Failed to parse tracking status")?
         .iter()
         .map(|i| {
             // UTC+9
             let time = format!(
                 "{} {} +0900",
-                i["workDt"].as_str().unwrap(),
-                i["workHms"].as_str().unwrap()
+                i["workDt"].as_str().ok_or("Missing workDt")?,
+                i["workHms"].as_str().ok_or("Missing workHms")?
             );
 
             let time = DateTime::parse_from_str(&time, "%Y-%m-%d %H:%M:%S %z").unwrap();
 
-            TrackingStatus {
+            Ok(TrackingStatus {
                 time,
                 status: i["crgStDnm"].as_str().unwrap_or_default().to_string(),
                 location: i["branNm"].as_str().unwrap_or_default().to_string(),
                 detail: i["crgStDcdVal"].as_str().unwrap_or_default().to_string(),
-            }
+            })
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()?;
 
     let delivery_status = tracking_status
         .last()
@@ -74,10 +69,22 @@ async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Er
         .unwrap_or_default();
 
     Ok(Parcel {
-        tracking_number,
-        sender,
-        receiver,
-        item,
+        tracking_number: parcel_response["data"]["wblNo"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string(),
+        sender: parcel_response["data"]["sndrNm"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string(),
+        receiver: parcel_response["data"]["rcvrNm"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string(),
+        item: parcel_response["data"]["repGoodsNm"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string(),
         delivery_status,
         tracking_status,
         last_updated_time,
