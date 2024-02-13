@@ -4,6 +4,7 @@ use chrono::prelude::*;
 use getter::get;
 use sqlx::{migrate::MigrateDatabase, FromRow, Sqlite, SqlitePool};
 use teloxide::{prelude::*, utils::command::BotCommands};
+use tokio::time::{sleep, Duration};
 
 #[derive(Debug)]
 struct Parcel {
@@ -13,6 +14,7 @@ struct Parcel {
     item: String,
     delivery_status: DeliveryStatus,
     tracking_status: Vec<TrackingStatus>,
+    last_updated_time: DateTime<FixedOffset>,
 }
 
 #[derive(Debug)]
@@ -32,12 +34,12 @@ enum DeliveryStatus {
 
 #[derive(Clone, FromRow, Debug)]
 struct Tracker {
-    tracker_id: i64,
+    id: i64,
     chat_id: i64,
     company: String,
     tracking_number: String,
-    added_time: i64,
-    last_checked_time: i64,
+    added_timestamp: i64,
+    last_updated_timestamp: i64,
 }
 
 const DB_URL: &str = "sqlite://sqlite.db";
@@ -61,18 +63,20 @@ async fn main() {
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS trackers (
-        tracker_id INTEGER PRIMARY KEY NOT NULL,
+        id INTEGER PRIMARY KEY NOT NULL,
         chat_id INTEGER NOT NULL,
         company TEXT NOT NULL,
         tracking_number TEXT NOT NULL,
-        added_time INTEGER,
-        last_checked_time INTEGER);",
+        added_timestamp INTEGER,
+        last_updated_timestamp INTEGER);",
     )
     .execute(&db)
     .await
     .unwrap();
 
     let bot = Bot::from_env();
+
+    tokio::spawn(poll(bot.clone()));
 
     Command::repl(bot, answer).await;
 }
@@ -91,7 +95,7 @@ enum Command {
         tracking_number: String,
     },
     #[command(description = "delete tracker")]
-    Delete { tracker_id: i64 },
+    Delete { id: i64 },
     #[command(description = "list trackers")]
     List,
 }
@@ -111,7 +115,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
 
                 sqlx::query(
                     "INSERT INTO trackers
-                (chat_id, company, tracking_number, added_time, last_checked_time)
+                (chat_id, company, tracking_number, added_timestamp, last_updated_timestamp)
                 VALUES
                 ($1, $2, $3, $4, $5);",
                 )
@@ -119,7 +123,7 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                 .bind(&company)
                 .bind(&tracking_number)
                 .bind(Utc::now().timestamp())
-                .bind(0)
+                .bind(parcel.last_updated_time.timestamp())
                 .execute(&db)
                 .await
                 .unwrap();
@@ -146,15 +150,15 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                     .await?
             }
         },
-        Command::Delete { tracker_id } => {
+        Command::Delete { id } => {
             let db = SqlitePool::connect(DB_URL).await.unwrap();
 
             sqlx::query(
                 "DELETE
                 FROM trackers
-                WHERE tracker_id = $1;",
+                WHERE id = $1;",
             )
-            .bind(tracker_id)
+            .bind(id)
             .execute(&db)
             .await
             .unwrap();
@@ -180,10 +184,10 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
                     msg.chat.id,
                     format!(
                         "{}\nCompany: {}\nTracking number: {}\nAdded time: {}",
-                        tracker.tracker_id,
+                        tracker.id,
                         tracker.company,
                         tracker.tracking_number,
-                        tracker.added_time
+                        DateTime::<Utc>::from_timestamp(tracker.added_timestamp, 0).unwrap()
                     ),
                 )
                 .await?;
@@ -194,4 +198,57 @@ async fn answer(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
     };
 
     Ok(())
+}
+
+async fn poll(bot: Bot) {
+    loop {
+        let db = SqlitePool::connect(DB_URL).await.unwrap();
+
+        let trackers = sqlx::query_as::<_, Tracker>(
+            "SELECT *
+            FROM trackers;",
+        )
+        .fetch_all(&db)
+        .await
+        .unwrap();
+
+        for tracker in trackers {
+            let parcel = get(&tracker.company, &tracker.tracking_number)
+                .await
+                .unwrap();
+
+            if parcel.last_updated_time.timestamp() > tracker.last_updated_timestamp {
+                bot.send_message(
+                    teloxide::types::Recipient::from(tracker.chat_id.to_string()),
+                    format!("{:#?}", parcel.tracking_status),
+                )
+                .await
+                .unwrap();
+            }
+
+            match parcel.last_updated_time.timestamp() > tracker.last_updated_timestamp {
+                true => {
+                    sqlx::query(
+                        "UPDATE trackers
+                        SET last_updated_timestamp = $1
+                        WHERE track_id = $2",
+                    )
+                    .bind(Utc::now().timestamp())
+                    .bind(tracker.id)
+                    .execute(&db)
+                    .await
+                    .unwrap();
+
+                    bot.send_message(
+                        teloxide::types::Recipient::from(tracker.chat_id.to_string()),
+                        format!("{:#?}", parcel.tracking_status.last()),
+                    )
+                    .await
+                    .unwrap();
+                }
+                false => {}
+            }
+        }
+        sleep(Duration::from_secs(30)).await;
+    }
 }

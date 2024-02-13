@@ -34,7 +34,6 @@ async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Er
     let sender = parcel["data"]["sndrNm"].as_str().unwrap().to_string();
     let receiver = parcel["data"]["rcvrNm"].as_str().unwrap().to_string();
     let item = parcel["data"]["repGoodsNm"].as_str().unwrap().to_string();
-    let delivery_status = DeliveryStatus::Unknown;
 
     let mut tracking_status: Vec<TrackingStatus> = Vec::new();
     for i in tracking["data"]["svcOutList"].as_array().unwrap() {
@@ -59,6 +58,21 @@ async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Er
         })
     }
 
+    let delivery_status = tracking_status
+        .last()
+        .map(
+            |last_tracking_status| match last_tracking_status.status.as_str() {
+                "배송완료" => DeliveryStatus::Completed,
+                _ => DeliveryStatus::InProgress,
+            },
+        )
+        .unwrap_or(DeliveryStatus::Unknown);
+
+    let last_updated_time = tracking_status
+        .last()
+        .map(|last_tracking_status| last_tracking_status.time)
+        .unwrap_or_default();
+
     Ok(Parcel {
         tracking_number,
         sender,
@@ -66,6 +80,7 @@ async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Er
         item,
         delivery_status,
         tracking_status,
+        last_updated_time,
     })
 }
 
@@ -75,7 +90,7 @@ mod test {
 
     #[tokio::test]
     async fn cj_logistics() {
-        let parcel = getter::get_cj_logistics(&std::env::var("CJ_LOGISTICS").unwrap())
+        let parcel = getter::get_cj_logistics(&std::env::var("TEST_CJ_LOGISTICS").unwrap())
             .await
             .unwrap();
 
