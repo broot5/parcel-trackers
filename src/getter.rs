@@ -30,33 +30,33 @@ async fn get_cj_logistics(tracking_number: &String) -> Result<Parcel, Box<dyn Er
         .json::<Value>()
         .await?;
 
-    let tracking_number = parcel["data"]["wblNo"].as_str().unwrap().parse().unwrap();
+    let tracking_number = parcel["data"]["wblNo"].as_str().unwrap().to_string();
     let sender = parcel["data"]["sndrNm"].as_str().unwrap().to_string();
     let receiver = parcel["data"]["rcvrNm"].as_str().unwrap().to_string();
     let item = parcel["data"]["repGoodsNm"].as_str().unwrap().to_string();
 
-    let mut tracking_status: Vec<TrackingStatus> = Vec::new();
-    for i in tracking["data"]["svcOutList"].as_array().unwrap() {
-        //UTC+9
-        let time = i["workDt"].as_str().unwrap().to_owned()
-            + " "
-            + i["workHms"].as_str().unwrap()
-            + " "
-            + "+0900";
+    let tracking_status = tracking["data"]["svcOutList"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| {
+            // UTC+9
+            let time = format!(
+                "{} {} +0900",
+                i["workDt"].as_str().unwrap(),
+                i["workHms"].as_str().unwrap()
+            );
 
-        let time = DateTime::parse_from_str(&time, "%Y-%m-%d %H:%M:%S %z").unwrap();
+            let time = DateTime::parse_from_str(&time, "%Y-%m-%d %H:%M:%S %z").unwrap();
 
-        let status = i["crgStDnm"].as_str().unwrap().to_string();
-        let location = i["branNm"].as_str().unwrap().to_string();
-        let detail = i["crgStDcdVal"].as_str().unwrap().to_string();
-
-        tracking_status.push(TrackingStatus {
-            time,
-            status,
-            location,
-            detail,
+            TrackingStatus {
+                time,
+                status: i["crgStDnm"].as_str().unwrap_or_default().to_string(),
+                location: i["branNm"].as_str().unwrap_or_default().to_string(),
+                detail: i["crgStDcdVal"].as_str().unwrap_or_default().to_string(),
+            }
         })
-    }
+        .collect::<Vec<_>>();
 
     let delivery_status = tracking_status
         .last()
