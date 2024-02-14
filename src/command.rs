@@ -66,7 +66,7 @@ pub async fn add(
 }
 
 pub async fn delete(bot: Bot, msg: Message, id: i64) -> HandlerResult {
-    db::delete_tracker(id).await;
+    db::delete_tracker(id, msg.chat.id.0).await;
     bot.send_message(msg.chat.id, format!("Deleted tracker {}", id))
         .await?;
     Ok(())

@@ -77,6 +77,8 @@ enum Command {
     },
     #[command(description = "delete tracker")]
     Delete { id: i64 },
+    #[command(description = "get current info of tracker")]
+    Info { id: i64 },
 }
 
 async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> HandlerResult {
@@ -88,6 +90,7 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> HandlerResult 
             tracking_number,
         } => add(bot, msg, company, tracking_number).await,
         Command::Delete { id } => delete(bot, msg, id).await,
+        Command::Info { id } => Ok(()),
     }
 }
 
@@ -123,21 +126,21 @@ async fn poll(bot: Bot) {
             }
 
             // Test
-            bot.send_message(
-                teloxide::types::Recipient::from(tracker.chat_id.to_string()),
-                format!(
-                    "{:#?}",
-                    parcel.tracking_status.last().unwrap_or(&TrackingStatus {
-                        time: Utc::now().into(),
-                        status: "Not found".to_string(),
-                        location: "".to_string(),
-                        detail: "".to_string()
-                    })
-                ),
-            )
-            .await
-            .unwrap();
+            // bot.send_message(
+            //     teloxide::types::Recipient::from(tracker.chat_id.to_string()),
+            //     format!(
+            //         "{:#?}",
+            //         parcel.tracking_status.last().unwrap_or(&TrackingStatus {
+            //             time: Utc::now().into(),
+            //             status: "Not found".to_string(),
+            //             location: "".to_string(),
+            //             detail: "".to_string()
+            //         })
+            //     ),
+            // )
+            // .await
+            // .unwrap();
         }
-        sleep(Duration::from_secs(10)).await;
+        sleep(Duration::from_secs(60)).await;
     }
 }

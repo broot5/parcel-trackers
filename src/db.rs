@@ -93,14 +93,16 @@ pub async fn add_tracker(
     .unwrap();
 }
 
-pub async fn delete_tracker(id: i64) {
+pub async fn delete_tracker(id: i64, chat_id: i64) {
     let db = connect_db().await;
     sqlx::query(
         "DELETE
                 FROM trackers
-                WHERE id = $1;",
+                WHERE id = $1
+                WHERE chat_id = $2",
     )
     .bind(id)
+    .bind(chat_id)
     .execute(&db)
     .await
     .unwrap();
