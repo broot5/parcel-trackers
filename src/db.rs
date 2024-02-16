@@ -50,8 +50,8 @@ pub async fn list_tracker(chat_id: i64) -> Vec<Tracker> {
 
     sqlx::query_as::<_, Tracker>(
         "SELECT *
-            FROM trackers
-            WHERE chat_id = $1;",
+        FROM trackers
+        WHERE chat_id = $1;",
     )
     .bind(chat_id)
     .fetch_all(&db)
@@ -63,7 +63,7 @@ pub async fn list_all_tracker() -> Vec<Tracker> {
     let db = connect_db().await;
     sqlx::query_as::<_, Tracker>(
         "SELECT *
-            FROM trackers;",
+        FROM trackers;",
     )
     .fetch_all(&db)
     .await
@@ -79,9 +79,9 @@ pub async fn add_tracker(
     let db = connect_db().await;
     sqlx::query(
         "INSERT INTO trackers
-                (chat_id, company, tracking_number, added_timestamp, last_updated_timestamp)
-                VALUES
-                ($1, $2, $3, $4, $5);",
+        (chat_id, company, tracking_number, added_timestamp, last_updated_timestamp)
+        VALUES
+        ($1, $2, $3, $4, $5);",
     )
     .bind(chat_id)
     .bind(company)
@@ -97,9 +97,8 @@ pub async fn delete_tracker(id: i64, chat_id: i64) {
     let db = connect_db().await;
     sqlx::query(
         "DELETE
-                FROM trackers
-                WHERE id = $1
-                WHERE chat_id = $2",
+        FROM trackers
+        WHERE id = $1 AND chat_id = $2",
     )
     .bind(id)
     .bind(chat_id)

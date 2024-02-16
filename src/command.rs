@@ -1,3 +1,5 @@
+use self::getter::get;
+
 use super::*;
 
 pub async fn help(bot: Bot, msg: Message) -> HandlerResult {
@@ -11,13 +13,18 @@ pub async fn list(bot: Bot, msg: Message) -> HandlerResult {
     let trackers = db::list_tracker(msg.chat.id.0).await;
 
     for tracker in trackers {
+        let parcel = get(&tracker.company, &tracker.tracking_number)
+            .await
+            .unwrap();
+
         bot.send_message(
             msg.chat.id,
             format!(
-                "{}\nCompany: {}\nTracking number: {}\nAdded time: {}",
+                "{}\nCompany: {}\nTracking number: {}\nItem: {}\nAdded time: {}",
                 tracker.id,
                 tracker.company,
                 tracker.tracking_number,
+                parcel.item,
                 DateTime::<Utc>::from_timestamp(tracker.added_timestamp, 0).unwrap()
             ),
         )
