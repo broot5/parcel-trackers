@@ -51,8 +51,8 @@ pub async fn add(
             bot.send_message(
                 msg.chat.id,
                 format!(
-                    "Item: {}\nDelivery Satus: {:?}",
-                    parcel.item, parcel.delivery_status
+                    "Sender: {}\nReceiver: {}\nItem: {}\nDelivery Satus: {:?}",
+                    parcel.sender, parcel.receiver, parcel.item, parcel.delivery_status
                 ),
             )
             .await?;

@@ -77,8 +77,6 @@ enum Command {
     },
     #[command(description = "delete tracker")]
     Delete { id: i64 },
-    #[command(description = "get current info of tracker")]
-    Info { id: i64 },
 }
 
 async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> HandlerResult {
@@ -90,7 +88,6 @@ async fn command_handler(bot: Bot, msg: Message, cmd: Command) -> HandlerResult 
             tracking_number,
         } => add(bot, msg, company, tracking_number).await,
         Command::Delete { id } => delete(bot, msg, id).await,
-        Command::Info { id } => Ok(()),
     }
 }
 
