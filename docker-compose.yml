@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  parcel-trackers:
+    build: ./
+    container_name: parcel-trackers
+    restart: unless-stopped
+    volumes:
+      - ./:/app:Z
+    env_file: .env
