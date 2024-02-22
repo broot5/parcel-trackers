@@ -1,6 +1,4 @@
-use self::getter::get;
-
-use super::*;
+use crate::*;
 
 pub async fn help(bot: Bot, msg: Message) -> HandlerResult {
     bot.send_message(msg.chat.id, Command::descriptions().to_string())
@@ -12,8 +10,8 @@ pub async fn help(bot: Bot, msg: Message) -> HandlerResult {
 pub async fn list(bot: Bot, msg: Message) -> HandlerResult {
     let trackers = db::list_tracker(msg.chat.id.0).await;
 
-    for tracker in trackers {
-        let parcel = get(&tracker.company, &tracker.tracking_number)
+    for tracker in &trackers {
+        let parcel = getter::get(&tracker.company, &tracker.tracking_number)
             .await
             .unwrap();
 
@@ -30,6 +28,12 @@ pub async fn list(bot: Bot, msg: Message) -> HandlerResult {
         )
         .await?;
     }
+
+    if trackers.is_empty() {
+        bot.send_message(msg.chat.id, "Your tracker list is empty!")
+            .await?;
+    }
+
     Ok(())
 }
 

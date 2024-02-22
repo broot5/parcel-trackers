@@ -1,4 +1,4 @@
-use super::*;
+use crate::*;
 use sqlx::{migrate::MigrateDatabase, FromRow, Pool, Sqlite, SqlitePool};
 
 const DB_URL: &str = "sqlite://sqlite.db";
