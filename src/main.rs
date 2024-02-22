@@ -73,12 +73,12 @@ enum Command {
     Help,
     #[command(description = "list trackers")]
     List,
-    #[command(description = "add tracker", parse_with = "split")]
+    #[command(description = "/add <company> <tracking number>", parse_with = "split")]
     Add {
         company: String,
         tracking_number: String,
     },
-    #[command(description = "delete tracker")]
+    #[command(description = "/delete <index number>")]
     Delete { id: i64 },
 }
 
