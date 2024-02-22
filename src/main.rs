@@ -4,6 +4,7 @@ mod getter;
 
 use chrono::prelude::*;
 use command::*;
+use dotenvy::dotenv;
 use teloxide::{prelude::*, utils::command::BotCommands};
 use tokio::time::{sleep, Duration};
 
@@ -43,7 +44,9 @@ async fn main() {
     db::create_db().await;
     db::create_trackers_table().await;
 
-    let bot = Bot::from_env();
+    dotenv().expect(".env file not found");
+
+    let bot = Bot::new(&std::env::var("TELOXIDE_TOKEN").unwrap());
 
     tokio::spawn(poll(bot.clone()));
 
