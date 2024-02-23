@@ -18,7 +18,7 @@ pub async fn list(bot: Bot, msg: Message) -> HandlerResult {
         bot.send_message(
             msg.chat.id,
             format!(
-                "{}\nCompany: {}\nTracking number: {}\nItem: {}\nAdded time: {}",
+                "Index: {}\nCompany: {}\nTracking number: {}\nItem: {}\nAdded time: {}",
                 tracker.id,
                 tracker.company,
                 tracker.tracking_number,
@@ -30,8 +30,11 @@ pub async fn list(bot: Bot, msg: Message) -> HandlerResult {
     }
 
     if trackers.is_empty() {
-        bot.send_message(msg.chat.id, "Your tracker list is empty!")
-            .await?;
+        bot.send_message(
+            msg.chat.id,
+            "Your tracker list is empty. Start adding trackers by typing /add <company> <tracking_number>",
+        )
+        .await?;
     }
 
     Ok(())
@@ -55,7 +58,10 @@ pub async fn add(
 
             bot.send_message(
                 msg.chat.id,
-                format!("Added Tracker\nCompany: {company}\nTracking number: {tracking_number}"),
+                format!(
+                    "Added Tracker\nCompany: {}\nTracking number: {}",
+                    parcel.company, parcel.tracking_number
+                ),
             )
             .await?;
 
