@@ -73,16 +73,16 @@ async fn main() {
     description = "These commands are supported:"
 )]
 enum Command {
-    #[command(description = "display this text")]
+    #[command(description = "display this text", alias = "h")]
     Help,
-    #[command(description = "list trackers")]
+    #[command(description = "list trackers", alias = "ls")]
     List,
-    #[command(description = "/add <company> <tracking_number>", parse_with = "split")]
+    #[command(description = "add tracker", parse_with = "split", alias = "a")]
     Add {
         company: String,
         tracking_number: String,
     },
-    #[command(description = "/delete <index>")]
+    #[command(description = "delete tracker", alias = "rm")]
     Delete { id: i64 },
 }
 
