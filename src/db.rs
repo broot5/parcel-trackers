@@ -20,13 +20,13 @@ async fn connect_db() -> Pool<Sqlite> {
 
 pub async fn create_db() {
     if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
-        println!("Creating database {}", DB_URL);
+        log::info!("Creating DB {}", DB_URL);
         match Sqlite::create_database(DB_URL).await {
-            Ok(_) => println!("Create db success"),
+            Ok(_) => log::info!("Successfully created DB"),
             Err(error) => panic!("error: {}", error),
         }
     } else {
-        println!("Database already exists");
+        log::info!("DB already exists");
     }
 }
 
@@ -45,6 +45,8 @@ pub async fn create_trackers_table() {
     .execute(&db)
     .await
     .unwrap();
+
+    log::info!("Successfully created trackers table");
 }
 
 pub async fn list_tracker(chat_id: i64) -> Vec<Tracker> {
@@ -94,6 +96,8 @@ pub async fn add_tracker(
     .execute(&db)
     .await
     .unwrap();
+
+    log::info!("Successfully added tracker to DB");
 }
 
 pub async fn delete_tracker(id: i64, chat_id: i64) {
@@ -108,6 +112,8 @@ pub async fn delete_tracker(id: i64, chat_id: i64) {
     .execute(&db)
     .await
     .unwrap();
+
+    log::info!("Successfully deleted tracker from DB");
 }
 
 pub async fn update_last_updated_timestamp(id: i64) {
@@ -122,6 +128,8 @@ pub async fn update_last_updated_timestamp(id: i64) {
     .execute(&db)
     .await
     .unwrap();
+
+    log::info!("Successfully Updated tracker's last_updated_timestamp");
 }
 
 pub async fn update_keep(id: i64, keep: u8) {
@@ -136,4 +144,6 @@ pub async fn update_keep(id: i64, keep: u8) {
     .execute(&db)
     .await
     .unwrap();
+
+    log::info!("Successfully Updated tracker's keep");
 }

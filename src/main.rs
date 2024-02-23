@@ -5,6 +5,7 @@ mod getter;
 use chrono::prelude::*;
 use command::*;
 use dotenvy::dotenv;
+use pretty_env_logger::env_logger::Target;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use teloxide::{prelude::*, utils::command::BotCommands};
 use tokio::time::{sleep, Duration};
@@ -40,7 +41,11 @@ enum DeliveryStatus {
 
 #[tokio::main]
 async fn main() {
-    pretty_env_logger::init();
+    pretty_env_logger::formatted_builder()
+        .filter_level(log::LevelFilter::Info)
+        .target(Target::Stdout)
+        .init();
+
     log::info!("Starting bot...");
 
     db::create_db().await;

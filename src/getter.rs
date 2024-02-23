@@ -225,7 +225,7 @@ mod test {
             .await
             .unwrap();
 
-        println!("{:#?}", parcel)
+        println!("{:#?}", parcel);
     }
 
     #[tokio::test]
@@ -236,6 +236,6 @@ mod test {
             .await
             .unwrap();
 
-        println!("{:#?}", parcel)
+        println!("{:#?}", parcel);
     }
 }
