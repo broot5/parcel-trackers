@@ -75,6 +75,7 @@ async fn get_cj_logistics(tracking_number: &str) -> Result<Parcel, Box<dyn Error
         .unwrap_or_default();
 
     Ok(Parcel {
+        company: String::from("CJ대한통운"),
         tracking_number: parcel_response["data"]["wblNo"]
             .as_str()
             .unwrap_or_default()
@@ -173,6 +174,7 @@ async fn get_epost(tracking_number: &str) -> Result<Parcel, Box<dyn Error>> {
         .unwrap_or_default();
 
     Ok(Parcel {
+        company: String::from("우체국"),
         tracking_number: document
             .select(&Selector::parse(r#"table.table_col > tbody > tr > th:nth-child(1)"#).unwrap())
             .next()
