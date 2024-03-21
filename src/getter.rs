@@ -7,6 +7,7 @@ pub async fn get(company: &str, tracking_number: &str) -> Option<Parcel> {
     match company {
         "CJ대한통운" => Some(get_cj_logistics(tracking_number).await.unwrap()),
         "우체국" => Some(get_epost(tracking_number).await.unwrap()),
+        "롯데택배" => Some(get_lotte(tracking_number).await.unwrap()),
         _ => None,
     }
 }
@@ -134,7 +135,7 @@ async fn get_epost(tracking_number: &str) -> Result<Parcel, Box<dyn Error>> {
         let time = DateTime::parse_from_str(&time, "%Y.%m.%d %H:%M %z").unwrap();
 
         let status = i
-            .select(&Selector::parse("td:nth-child(4) > span:nth-child(1)").unwrap())
+            .select(&Selector::parse(r#"td:nth-child(4) > span:nth-child(1)"#).unwrap())
             .next()
             .unwrap()
             .text()
@@ -152,7 +153,7 @@ async fn get_epost(tracking_number: &str) -> Result<Parcel, Box<dyn Error>> {
             .to_string();
 
         let detail = i
-            .select(&Selector::parse("td:nth-child(4) > span:nth-child(2)").unwrap())
+            .select(&Selector::parse(r#"td:nth-child(4) > span:nth-child(2)"#).unwrap())
             .next()
             .map(|e| e.text().next())
             .unwrap_or_default()
@@ -181,7 +182,7 @@ async fn get_epost(tracking_number: &str) -> Result<Parcel, Box<dyn Error>> {
             .unwrap()
             .text()
             .next()
-            .unwrap()
+            .unwrap_or_default()
             .into(),
         sender: document
             .select(&Selector::parse(r#"table.table_col > tbody > tr > td:nth-child(2)"#).unwrap())
@@ -213,6 +214,36 @@ async fn get_epost(tracking_number: &str) -> Result<Parcel, Box<dyn Error>> {
     })
 }
 
+async fn get_lotte(tracking_number: &str) -> Result<Parcel, Box<dyn Error>> {
+    let response = reqwest::get(format!(
+        "https://www.lotteglogis.com/home/reservation/tracking/linkView?InvNo={}",
+        tracking_number
+    ))
+    .await?;
+
+    let text = response.text().await?;
+
+    let document = Html::parse_document(&text);
+
+    Ok(Parcel {
+        company: String::from("롯데택배"),
+        tracking_number: document
+            .select(&Selector::parse(r#"table.tblH.mt60 > tbody > tr > td:nth-child(1)"#).unwrap())
+            .next()
+            .unwrap()
+            .text()
+            .next()
+            .unwrap_or_default()
+            .into(),
+        sender: String::default(),
+        receiver: String::default(),
+        item: String::default(),
+        delivery_status: (),
+        tracking_status: (),
+        last_updated_time: (),
+    })
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -229,6 +260,15 @@ mod test {
     #[tokio::test]
     async fn epost() {
         let parcel = get_epost(&std::env::var("TEST_EPOST").unwrap())
+            .await
+            .unwrap();
+
+        println!("{:#?}", parcel);
+    }
+
+    #[tokio::test]
+    async fn lotte() {
+        let parcel = get_lotte(&std::env::var("TEST_LOTTE").unwrap())
             .await
             .unwrap();
 
