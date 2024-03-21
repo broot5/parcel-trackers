@@ -6,9 +6,17 @@
 1. CJ대한통운
 2. 우체국
 
-## Docker
-```console
-git clone https://github.com/broot5/parcel-trackers.git
-cd parcel-trackers
-docker compose up -d
+## docker compose
+```yaml
+version: "3.8"
+
+services:
+  parcel-trackers:
+    build: ./
+    container_name: parcel-trackers
+    restart: unless-stopped
+    volumes:
+      - ./db:/app/db
+    environment:
+      - TELOXIDE_TOKEN=00000000
 ```

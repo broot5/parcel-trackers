@@ -1,7 +1,7 @@
 use crate::*;
 use sqlx::{migrate::MigrateDatabase, FromRow, Pool, Sqlite, SqlitePool};
 
-const DB_URL: &str = "sqlite://sqlite.db";
+const DB_URL: &str = "sqlite://db/sqlite.db";
 
 #[derive(Clone, FromRow, Debug)]
 pub struct Tracker {
@@ -19,6 +19,8 @@ async fn connect_db() -> Pool<Sqlite> {
 }
 
 pub async fn create_db() {
+    std::fs::create_dir_all("db").unwrap();
+
     if !Sqlite::database_exists(DB_URL).await.unwrap_or(false) {
         log::info!("Creating DB {}", DB_URL);
         match Sqlite::create_database(DB_URL).await {
