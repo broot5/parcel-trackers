@@ -4,7 +4,6 @@ mod getter;
 
 use chrono::prelude::*;
 use command::*;
-use dotenvy::dotenv;
 use pretty_env_logger::env_logger::Target;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 use teloxide::{prelude::*, utils::command::BotCommands};
@@ -50,8 +49,6 @@ async fn main() {
 
     db::create_db().await;
     db::create_trackers_table().await;
-
-    dotenv().expect(".env file not found");
 
     let bot = Bot::new(std::env::var("TELOXIDE_TOKEN").unwrap());
 

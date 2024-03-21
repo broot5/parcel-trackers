@@ -219,8 +219,6 @@ mod test {
 
     #[tokio::test]
     async fn cj_logistics() {
-        dotenv().expect(".env file not found");
-
         let parcel = get_cj_logistics(&std::env::var("TEST_CJ_LOGISTICS").unwrap())
             .await
             .unwrap();
@@ -230,8 +228,6 @@ mod test {
 
     #[tokio::test]
     async fn epost() {
-        dotenv().expect(".env file not found");
-
         let parcel = get_epost(&std::env::var("TEST_EPOST").unwrap())
             .await
             .unwrap();
