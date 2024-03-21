@@ -12,7 +12,7 @@ version: "3.8"
 
 services:
   parcel-trackers:
-    build: ./
+    build: ghcr.io/broot5/parcel-trackers:latest
     container_name: parcel-trackers
     restart: unless-stopped
     volumes:
